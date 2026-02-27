@@ -102,20 +102,20 @@ class TestWriteJsonReport:
 
     def test_production_and_dev_split(self):
         reports = {
-            "pkg:pypi/prod@1.0": _make_report("pkg:pypi/prod@1.0", is_dev=False),
-            "pkg:pypi/dev@1.0": _make_report("pkg:pypi/dev@1.0", is_dev=True),
+            "pypi/pypi/-/prod/1.0": _make_report("pypi/pypi/-/prod/1.0", is_dev=False),
+            "pypi/pypi/-/dev/1.0": _make_report("pypi/pypi/-/dev/1.0", is_dev=True),
         }
         output = self._capture(reports)
         assert len(output["production"]) == 1
         assert len(output["development"]) == 1
-        assert output["production"][0]["package"] == "pkg:pypi/prod@1.0"
-        assert output["development"][0]["package"] == "pkg:pypi/dev@1.0"
+        assert output["production"][0]["package"] == {"distribution": "pypi", "name": "prod", "version": "1.0"}
+        assert output["development"][0]["package"] == {"distribution": "pypi", "name": "dev", "version": "1.0"}
 
     def test_case1_all_allowed_status_is_dict_with_allowed(self):
         """All allowed: status is a dict with each policy showing 'allowed'."""
         reports = {
-            "pkg:pypi/a@1.0": _make_report(
-                "pkg:pypi/a@1.0", status=ComplianceStatus.ALLOWED
+            "pypi/pypi/-/a/1.0": _make_report(
+                "pypi/pypi/-/a/1.0", status=ComplianceStatus.ALLOWED
             ),
         }
         output = self._capture(reports)
@@ -125,14 +125,14 @@ class TestWriteJsonReport:
 
     def test_case1_all_allowed_including_extra_policies(self):
         """All policies allowed: every policy entry shows 'allowed'."""
-        report = _make_report("pkg:pypi/a@1.0", status=ComplianceStatus.ALLOWED)
+        report = _make_report("pypi/pypi/-/a/1.0", status=ComplianceStatus.ALLOWED)
         report.extra_policies["ASF"] = ComplianceResult(
             status=ComplianceStatus.ALLOWED, problems=[]
         )
         report.extra_policies["EF"] = ComplianceResult(
             status=ComplianceStatus.ALLOWED, problems=[]
         )
-        output = self._capture({"pkg:pypi/a@1.0": report})
+        output = self._capture({"pypi/pypi/-/a/1.0": report})
         status = output["production"][0]["status"]
         assert status["Eclipse Dash"] == {"status": "allowed", "problems": []}
         assert status["ASF"] == {"status": "allowed", "problems": []}
@@ -141,8 +141,8 @@ class TestWriteJsonReport:
     def test_case2_restricted_eclipse_dash_gives_dict(self):
         """Eclipse Dash restricted: dict with restricted status."""
         reports = {
-            "pkg:pypi/a@1.0": _make_report(
-                "pkg:pypi/a@1.0", status=ComplianceStatus.RESTRICTED
+            "pypi/pypi/-/a/1.0": _make_report(
+                "pypi/pypi/-/a/1.0", status=ComplianceStatus.RESTRICTED
             ),
         }
         output = self._capture(reports)
@@ -152,7 +152,7 @@ class TestWriteJsonReport:
 
     def test_case2_extra_policies_status_is_dict_per_policy(self):
         """Case 2: extra policies present — status is a dict keyed by policy."""
-        report = _make_report("pkg:pypi/a@1.0")
+        report = _make_report("pypi/pypi/-/a/1.0")
         report.extra_policies["ASF"] = ComplianceResult(
             status=ComplianceStatus.UNCERTAIN,
             problems=["LicenseRef-scancode-other-permissive"],
@@ -161,7 +161,7 @@ class TestWriteJsonReport:
             status=ComplianceStatus.UNCERTAIN,
             problems=["LicenseRef-scancode-other-permissive"],
         )
-        output = self._capture({"pkg:pypi/a@1.0": report})
+        output = self._capture({"pypi/pypi/-/a/1.0": report})
         status = output["production"][0]["status"]
         assert isinstance(status, dict)
         assert status["Eclipse Dash"] == {"status": "allowed", "problems": []}
@@ -170,7 +170,7 @@ class TestWriteJsonReport:
         assert status["EF"]["status"] == "uncertain"
 
     def test_output_is_valid_json(self, capsys):
-        reports = {"pkg:pypi/x@2.0": _make_report("pkg:pypi/x@2.0")}
+        reports = {"pypi/pypi/-/x/2.0": _make_report("pypi/pypi/-/x/2.0")}
         write_json_report(reports)
         captured = capsys.readouterr()
         parsed = json.loads(captured.out)

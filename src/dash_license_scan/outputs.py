@@ -52,6 +52,16 @@ def _clearlydefined_or_ticket_to_link(package: str, src: str) -> str:
         return src
 
 
+def _clearlydefined_or_ticket_to_url(package: str, src: str) -> str:
+    if src == "clearlydefined":
+        return f"https://clearlydefined.io/definitions/{package}"
+    elif src.startswith("#"):
+        issue_id = src[1:]
+        return f"https://gitlab.eclipse.org/eclipsefdn/emo-team/iplab/-/issues/{issue_id}"
+    else:
+        return src
+
+
 def results_to_markdown(results: dict[str, ComplianceResult]) -> str:
     parts = []
     if len(results) == 1:
@@ -128,15 +138,32 @@ def _compliance_result_to_json(result: ComplianceResult) -> dict:
     }
 
 
+def _parse_coordinate(coord: str) -> dict[str, str]:
+    """Split a dash-licenses / ClearlyDefined coordinate into its parts.
+
+    Coordinate format: {type}/{provider}/-/{name}/{version}
+    e.g. "pypi/pypi/-/xmltodict/1.0.2"
+    Maven names contain a slash: "maven/mavencentral/-/group/artifact/1.0"
+    """
+    # Split on the literal separator "/-/" to isolate the name+version tail
+    head, sep, tail = coord.partition("/-/")
+    if not sep:
+        return {"distribution": "", "name": coord, "version": ""}
+    distribution = head.split("/")[0]
+    *name_parts, version = tail.split("/")
+    name = "/".join(name_parts)
+    return {"name": name, "version": version, "distribution": distribution}
+
+
 def _report_to_json(report: DependencyReport) -> dict:
     results = _aggregate_status_results(report.status, report.extra_policies)
     return {
-        "package": report.package,
+        "package": _parse_coordinate(report.package),
         "license": report.license_pretty,
         "status": {
             policy: _compliance_result_to_json(comp) for policy, comp in results.items()
         },
-        "details": _clearlydefined_or_ticket_to_link(
+        "details": _clearlydefined_or_ticket_to_url(
             report.package, report.clearlydefined_or_ticket
         ),
     }
